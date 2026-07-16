@@ -55,7 +55,7 @@ jobs:
 
       run:
 
-        dotnet restore Prove.sln
+        dotnet restore Prove.slnx
 
 
 
