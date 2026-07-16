@@ -182,7 +182,7 @@ jobs:
     - name: Publish Application
 
 
-      run:
+      run: |
 
 
         dotnet publish ${{ env.PROJECT_PATH }} \
