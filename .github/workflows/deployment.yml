@@ -1,0 +1,221 @@
+name: Prove API CI/CD Windows
+
+
+on:
+
+  push:
+
+    branches:
+
+      - main
+
+
+
+env:
+
+  DOTNET_VERSION: 8.0.x
+
+  PROJECT_PATH: Prove.API/Prove.API.csproj
+
+
+
+jobs:
+
+
+# =========================
+# BUILD + UNIT TEST
+# =========================
+
+ build-test:
+
+
+  runs-on: ubuntu-latest
+
+
+  steps:
+
+
+  - uses: actions/checkout@v4
+
+
+
+  - name: Setup .NET
+
+    uses: actions/setup-dotnet@v4
+
+    with:
+
+      dotnet-version: ${{env.DOTNET_VERSION}}
+
+
+
+  - name: Restore
+
+    run:
+
+      dotnet restore Prove.sln
+
+
+
+  - name: Build
+
+    run:
+
+      dotnet build Prove.sln -c Release
+
+
+
+  - name: Unit Test
+
+    run:
+
+
+      dotnet test BusinessLogic.Test/BusinessLogic.Test.csproj \
+      -c Release
+
+
+
+
+# =========================
+# PUBLISH
+# =========================
+
+
+ publish:
+
+
+  needs: build-test
+
+
+  runs-on: ubuntu-latest
+
+
+
+  steps:
+
+
+  - uses: actions/checkout@v4
+
+
+
+  - uses: actions/setup-dotnet@v4
+
+    with:
+
+      dotnet-version: ${{env.DOTNET_VERSION}}
+
+
+
+  - name: Publish
+
+
+    run:
+
+
+      dotnet publish ${{env.PROJECT_PATH}} \
+      -c Release \
+      -o ./publish
+
+
+
+  - name: Upload Artifact
+
+
+    uses: actions/upload-artifact@v4
+
+
+    with:
+
+      name: prove-api
+
+      path: publish
+
+
+
+
+
+# =========================
+# DEPLOY WINDOWS SERVER
+# =========================
+
+
+ deploy:
+
+
+  needs: publish
+
+
+  runs-on: windows-latest
+
+
+
+  steps:
+
+
+
+  - name: Download Artifact
+
+
+    uses: actions/download-artifact@v4
+
+
+    with:
+
+      name: prove-api
+
+      path: publish
+
+
+
+
+  - name: Deploy Using PowerShell
+
+
+    shell: pwsh
+
+
+    run: |
+
+
+      $server="${{ secrets.WINDOWS_SERVER_HOST }}"
+
+      $user="${{ secrets.WINDOWS_SERVER_USER }}"
+
+      $pass="${{ secrets.WINDOWS_SERVER_PASSWORD }}"
+
+
+
+      $securePass = ConvertTo-SecureString $pass -AsPlainText -Force
+
+
+      $cred = New-Object System.Management.Automation.PSCredential($user,$securePass)
+
+
+
+      $session = New-PSSession `
+      -ComputerName $server `
+      -Credential $cred
+
+
+
+      Copy-Item `
+      -Path "./publish/*" `
+      -Destination "C:\Users\user-test\Documents\APP" `
+      -ToSession $session `
+      -Recurse -Force
+
+
+
+      Invoke-Command `
+      -Session $session `
+      -ScriptBlock {
+
+
+          Restart-Service ProveAPI
+
+
+      }
+
+
+
+      Remove-PSSession $session
