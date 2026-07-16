@@ -218,7 +218,7 @@ jobs:
       - security-test
 
 
-    runs-on: windows-latest
+    runs-on: [self-hosted, windows]
 
 
     steps:
@@ -236,36 +236,53 @@ jobs:
 
 
 
-    - name: Copy Application To Windows Server
+    - name: Stop Prove API Service
 
       shell: powershell
 
       run: |
 
-        $server = "${{ secrets.WINDOWS_SERVER_HOST }}"
+        if (Get-Service ProveAPI -ErrorAction SilentlyContinue) {
 
-        $user = "${{ secrets.WINDOWS_SERVER_USER }}"
+          Stop-Service ProveAPI
 
-        $password = "${{ secrets.WINDOWS_SERVER_PASSWORD }}"
-
-
-        scp -r publish/* `
-        ${user}@${server}:"C:/Users/user-test/Documents/APP"
+        }
 
 
 
-    - name: Restart Service On Windows Server
+    - name: Deploy Application To Windows Server
 
       shell: powershell
 
       run: |
 
-        $server = "${{ secrets.WINDOWS_SERVER_HOST }}"
-
-        $user = "${{ secrets.WINDOWS_SERVER_USER }}"
-
-        $password = "${{ secrets.WINDOWS_SERVER_PASSWORD }}"
+        $target = "C:\Users\user-test\Documents\APP"
 
 
-        ssh ${user}@${server} `
-        "powershell Restart-Service ProveAPI"
+        if (!(Test-Path $target)) {
+
+          New-Item `
+          -ItemType Directory `
+          -Path $target
+
+        }
+
+
+        Copy-Item `
+        -Path ".\publish\*" `
+        -Destination $target `
+        -Recurse `
+        -Force
+
+
+
+    - name: Start Prove API Service
+
+      shell: powershell
+
+      run: |
+
+        Start-Service ProveAPI
+
+
+        Get-Service ProveAPI
