@@ -63,7 +63,7 @@ jobs:
 
       run:
 
-        dotnet build Prove.sln -c Release
+        dotnet build Prove.slnx -c Release
 
 
 
