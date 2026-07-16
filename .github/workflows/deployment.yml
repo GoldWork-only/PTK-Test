@@ -215,7 +215,6 @@ jobs:
 
   deploy:
 
-
     needs:
 
       - publish
@@ -223,115 +222,54 @@ jobs:
       - security-test
 
 
-
     runs-on: windows-latest
-
 
 
     steps:
 
 
-
     - name: Download Artifact
-
 
       uses: actions/download-artifact@v4
 
-
       with:
 
-
         name: prove-api
-
 
         path: publish
 
 
 
+    - name: Copy Application To Windows Server
 
-
-    - name: Deploy Using PowerShell
-
-
-      shell: pwsh
-
+      shell: powershell
 
       run: |
 
+        $server = "${{ secrets.WINDOWS_SERVER_HOST }}"
 
-        $server="${{ secrets.WINDOWS_SERVER_HOST }}"
+        $user = "${{ secrets.WINDOWS_SERVER_USER }}"
 
-        $user="${{ secrets.WINDOWS_SERVER_USER }}"
-
-        $pass="${{ secrets.WINDOWS_SERVER_PASSWORD }}"
-
+        $password = "${{ secrets.WINDOWS_SERVER_PASSWORD }}"
 
 
-        $securePass = ConvertTo-SecureString $pass -AsPlainText -Force
-
-
-
-        $cred = New-Object System.Management.Automation.PSCredential(
-          $user,
-          $securePass
-        )
+        scp -r publish/* `
+        ${user}@${server}:"C:/Users/user-test/Documents/APP"
 
 
 
-        $session = New-PSSession `
-        -ComputerName $server `
-        -Credential $cred
+    - name: Restart Service On Windows Server
+
+      shell: powershell
+
+      run: |
+
+        $server = "${{ secrets.WINDOWS_SERVER_HOST }}"
+
+        $user = "${{ secrets.WINDOWS_SERVER_USER }}"
+
+        $password = "${{ secrets.WINDOWS_SERVER_PASSWORD }}"
 
 
-
-        Invoke-Command `
-        -Session $session `
-        -ScriptBlock {
-
-
-            if (!(Test-Path "C:\Users\user-test\Documents\APP")) {
-
-
-                New-Item `
-                -ItemType Directory `
-                -Path "C:\Users\user-test\Documents\APP"
-
-
-            }
-
-
-        }
-
-
-
-        Copy-Item `
-
-        -Path "./publish/*" `
-
-        -Destination "C:\Users\user-test\Documents\APP" `
-
-        -ToSession $session `
-
-        -Recurse `
-
-        -Force
-
-
-
-
-
-        Invoke-Command `
-
-        -Session $session `
-
-        -ScriptBlock {
-
-
-            Restart-Service ProveAPI
-
-
-        }
-
-
-
-        Remove-PSSession $session
+        ssh ${user}@${server} `
+        "powershell Restart-Service ProveAPI"
