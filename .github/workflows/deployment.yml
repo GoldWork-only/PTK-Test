@@ -71,7 +71,7 @@ jobs:
 
       run:
 
-        dotnet test BusinessLogic.Test/BusinessLogic.Test.csproj -c Release
+        dotnet test BusinessLogic.Tests/BusinessLogic.Tests.csproj -c Release
 
 
 
